@@ -1,0 +1,14 @@
+{
+	"zh-cn": {
+		"source": "../resources/pkg/e-vdi",
+		"text": "简体中文"
+	},
+	"en-us": {
+		"source": "../resources/pkg/classEn",
+		"text": "英文"
+	},
+	"zh-tw": {
+		"source": "../resources/pkg/fan",
+		"text": "繁体中文"
+	}
+}

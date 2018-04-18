@@ -1,0 +1,179 @@
+﻿{
+  "resource_template": {
+  	"key": "0",
+  	"title": "dev"
+  },
+  "resources": [
+	{
+		"key": "e-vdi",
+		"name": "E-VDI",
+		"title": "E-VDI",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"public",
+		"public":true
+	},
+	{
+		"key": "pc",
+		"name": "云PC",
+		"title": "云PC",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"public",
+		"public":true
+	},
+	{
+		"key": "classCh",
+		"name": "云教室",
+		"title": "云教室中文",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"public",
+		"public":true
+	},
+	{
+		"key": "classEn",
+		"name": "Cloud Class",
+		"title": "云教室英文",
+		"langType":"en",
+		"langDes":"English",
+		"clientKey":"public",
+		"public":true
+	},
+	{
+		"key": "tongfang",
+		"name": "清华同方",
+		"title": "清华同方",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"tongfang",
+		"public":false
+	},
+	{
+		"key": "tongfangshow",
+		"name": "虚拟化桌面云平台",
+		"title": "虚拟化桌面云平台",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"tongfangshow",
+		"public":false
+	},
+	{
+		"key": "fan",
+		"name": "圓宸桌面雲",
+		"title": "圓宸桌面雲",
+		"langType": "fan",
+		"langDes":"繁體",
+		"clientKey":"fan",
+		"public":false
+	},
+	{
+		"key": "huipu",
+		"name": "惠普",
+		"title": "惠普",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"huipu",
+		"public":false
+	},
+	{
+		"key": "huipushow",
+		"name": "云桌面系统",
+		"title": "云桌面系统",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"huipushow",
+		"public":false
+	},
+	{
+		"key": "japan",
+		"name": "日语",
+		"title": "E-VDI",
+		"langType": "janpan",
+		"langDes":"日语",
+		"clientKey":"japan",
+		"public":false
+	},
+	{
+		"key": "hwClassCh",
+		"name": "华网云桌面",
+		"title": "华网云桌面",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"hwClassCh",
+		"public":false
+	},
+	{
+		"key": "hwPC",
+		"name": "华网云",
+		"title": "华网云",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"hwPC",
+		"public":false
+	},
+	{
+		"key": "xipu",
+		"name": "西普",
+		"title": "西普",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"xipu",
+		"public":false
+	},
+	{
+		"key": "baode",
+		"name": "宝德",
+		"title": "宝德",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"baode",
+		"public":false
+	},
+	{
+		"key": "baodePC",
+		"name": "宝德",
+		"title": "宝德",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"baodePC",
+		"public":false
+	},
+	{
+		"key": "wuzhou",
+		"name": "五舟云",
+		"title": "五舟云",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"wuzhou",
+		"public":false
+	},
+	{
+		"key": "fanlian",
+		"name": "泛联教育桌面云",
+		"title": "泛联教育桌面云",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"fanlian",
+		"public":false
+	},
+	{
+		"key": "huili",
+		"name": "汇力教育桌面云",
+		"title": "汇力教育桌面云",
+		"langType": "cn",
+		"langDes":"中文",
+		"clientKey":"huili",
+		"public":false
+	},
+	{
+		"key": "vpc",
+		"name": "OS-easy vPC",
+		"title": "OS-easy vPC",
+		"langType":"cn",
+		"langDes":"中文",
+		"clientKey":"vpc",
+		"public":false
+	}
+  ]
+}

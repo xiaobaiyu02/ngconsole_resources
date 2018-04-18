@@ -1,0 +1,9 @@
+#!/bin/sh
+# 检查 resources 下面 json 语法
+GITROOT=$(git rev-parse --show-toplevel)
+git diff --cached --name-only|node "$GITROOT/resources/checkJsonSyntax.js"
+
+if [ $? -eq 0 ]; then
+	echo "提交被终止！！！"
+	exit 1;
+fi

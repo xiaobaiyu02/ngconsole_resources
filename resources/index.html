@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+	<style type="text/css">
+		html, body, div, ul, li, table, tr, td, th, input, img, h3 {margin: 0;padding:0;}
+		body {font: 12px system-ui;}
+		.toolbar {height: 35px;line-height: 35px;text-align: center;background: rgba(255,255,255,.5);position: fixed;top:0;left:0;right:0;}
+		.toolbar .float-left {float: left;padding-left: 8px;}
+		.toolbar input {display: inline-block;vertical-align: middle;margin-left: 25px;}
+		.toolbar input:first-child {margin-left: 0;}
+		.toolbar button {margin-left: 50px;}
+		.toolbar .search-field {border: 1px solid #e1e1e1; border-radius: 5px; padding: 2px 0 2px 2px;margin-left:0;}
+		.toolbar .search-field + input {margin-left: 10px;}
+
+		td, th {border: 1px solid #e1e1e1;}
+		table {border-collapse: collapse;}
+		th, td {white-space: nowrap;height: 24px;line-height: 24px;}
+		.smart-grid {overflow: hidden;position: absolute;top:35px;right:0;bottom:0;left:0;}
+		/*.grid-header, .grid-body {width: 100%;box-sizing: border-box;}*/
+		.grid-body-wrapper {position: absolute;top: 26px;right:0;bottom:0;left:0;overflow: auto;}
+		.grid-body {position: absolute;top:0;right:0;left:0;min-width: 100%;}
+        tr.disabled td {background-color: #FFF; color: #FFF;border-color: #FFF;-webkit-user-select: none;}
+        .grid-body .disabled:first-child td {border-top-color: #e1e1e1;}
+
+		.row-editor {position: absolute; left:0; display: none;}
+		.row-editor td {background-color: #9cd9f3;}
+		.row-editor input {display: block;width: 100%; height: 24px; line-height: 24px; border-width: 0;resize: none;outline: none;background-color: #9cd9f3;font: 12px system-ui;}
+
+		.image-body td {position: relative; height: 100px; max-height: 100px;overflow: visible;}
+		.image-body img {display: block; max-width: 100%; max-height: 100%;transition: all .3s;}
+		.image-body td:hover img {position: absolute; z-index: 100; top: 0; left: 0; max-height: initial; max-width: initial;}
+
+		.ui-modal {position: absolute; top: 50%; left: 50%; z-index: 1000;transition: all .3s;border-radius: 5px;border: 1px solid #9d9d9d; background-color: #FFF;display: none;}
+		.ui-modal.open {display: block;}
+		.modal-header {height: 33px; line-height: 33px; position: relative; border-bottom: 1px solid #9d9d9d;}
+		.modal-header h3 {text-indent: 1em;}
+		.modal-header .close {position: absolute; right: 6px; top: 9px; width: 16px; height: 16px; line-height: 16px; text-align: center; cursor: pointer;}
+		.modal-header .close:hover {font-weight: bold;}
+		.modal-body {padding: 20px;}
+		.modal-footer {height: 50px; line-height: 50px; border-top: 1px solid #9d9d9d; text-align: right;transition: all .3s;}
+		.modal-footer button {margin-right: 16px;}
+		.modal-footer.hidden {height: 0; line-height: 0; opacity: 0;}
+		.fanyi-table {width: 500px;}
+		.fanyi-table input {display: block; height: 100%; width: 100%; border-width: 0;outline: none;background-color: lightblue;font-size: 12px;}
+		#grid-menu {background-color: #fafafa; border: 1px solid #eee; border-radius: 5px; box-shadow: 0 0 5px #777;position: absolute;top:0;left:0;display: none;width:100px;}
+		#grid-menu li:first-child {padding-top: 3px;}
+		#grid-menu li {padding-bottom: 3px;padding-left: 3px; padding-right: 3px; display: block;}
+		#grid-menu li a {display: block; width: 100%; text-align: center; height: 25px; line-height: 25px; color: #000; cursor: pointer; text-decoration: none;}
+		#grid-menu li a:hover {background-color: #0b61ab; color: #FFF;}
+	</style>
+</head>
+
+<body>
+
+
+<div class="toolbar">
+	<div class="float-left">
+		<input type="text" id="search-keyword" class="search-field" placeholder="搜索"/>
+		<input type="checkbox" id="search-fulltext"/> 全文本搜索
+	</div>
+	<input type="radio" name="type" value="code" checked/> 状态码
+	<input type="radio" name="type" value="lang"/> 本地资源
+	<input type="radio" name="type" value="images"/> 图片
+	<button type="button" id="add-btn">添加</button>
+	<button type="button" id="save-btn">保存</button>
+</div>
+<div class="smart-grid"></div>
+<ul id="grid-menu">
+	<li><a href="javascript:;" data-action="edit-key">编辑 key</a></li>
+	<li><a href="javascript:;" data-action="delete">删除</a></li>
+</ul>
+<script>"use strict";
+const fs = require("fs");
+const path = require("path");
+
+let jsonlib;
+let hasJsonlint = false;
+try {
+	jsonlib = require("jsonlint");
+	hasJsonlint = true;
+} catch(e) {
+	jsonlib = JSON;
+}
+
+let arraySlice = Array.prototype.slice;
+
+window.addEventListener('load', bootstrap);
+
+function SmartGrid(element, header, body) {
+    let self = this;
+    self.container = element;
+    self.columns = header;
+
+    self.render();
+	self.scrollElement.addEventListener('scroll', function (e) {
+	    self.updateOffset();
+		self.updateContent();
+
+		let editor = self.getEditor();
+		if(editor) {
+		    editor.updatePosition();
+		}
+    });
+
+	window.addEventListener('resize', function(){
+		self.updatePageSize();
+
+        let editor = self.getEditor();
+        if(editor) {
+            editor.updatePosition();
+        }
+    });
+    self.setData(body);
+	self.updatePageSize();
+}
+
+SmartGrid.prototype = {
+    constructor: SmartGrid,
+	getItemHeight: function(){
+        let el = this.grid;
+        // 显示文本等的时候强制设置表格行高为 25px
+		// 显示图片的时候强制设置表格行高为 100px
+        if(el.classList.contains("image-body")) {
+            return 100;
+		} else {
+            return 25;
+		}
+	},
+    getPageSize: function(){
+	    let h = valueOf(this.scrollElement, 'height');
+	    return Math.ceil(h / this.getItemHeight());
+	},
+    setData: function(data){
+        let axis;
+        this._data = data;
+        axis = this.container.querySelector(".grid-axis");
+        axis.style.height = data.length * this.getItemHeight() + "px";
+        this.updateContent();
+	},
+	setRange: function(i, len){
+        let data;
+        try {
+            data = this._data.slice(i, i + len);
+        } catch(e) {
+            data = [];
+        }
+        let columns = this.columns;
+        let isImage = this.grid.classList.contains("image-body");
+        let rows = this.grid.rows;
+        arraySlice.call(rows).forEach(function(tr, i){
+            let cells = tr.cells;
+            let rowData = data[i];
+            // 没有更多的数据了
+            if(!rowData) {
+                tr.classList.add("disabled");
+                arraySlice.call(tr.cells).forEach((td) => td.innerHTML = '');
+                return;
+			} else {
+                tr.classList.remove("disabled");
+			}
+            arraySlice.call(cells).forEach((function(cell, j){
+                let html, key = columns[j];
+                let value = rowData[key];
+                if(key !== "key" && isImage) {
+                    cell.innerHTML = '<img src="' + value + '"/>';
+				} else {
+                    cell.innerText = value;
+                }
+			}));
+		});
+	},
+    render: function(){
+        if(this._rendered) { return; }
+        let buf = ['<div style="overflow: hidden;"><table class="grid-header"><thead><tr>'];
+        this.columns.forEach(function(text){
+            buf.push('<th>' + text + '</th>');
+		});
+        buf.push('</tr></thead></table></div>');
+        buf.push('<div class="grid-body-wrapper"><table class="grid-body"></table><div class="grid-axis"></div></div>');
+
+        this.container.innerHTML = buf.join('');
+        this.grid = this.container.querySelector(".grid-body");
+        this.scrollElement = this.grid.parentNode;
+        this.header = this.container.querySelector('.grid-header');
+        this._rendered = true;
+	},
+    updatePageSize: function(){
+        let size = this.getPageSize();
+        let grid = this.grid;
+        let rows = grid.querySelectorAll('tr');
+        if(rows.length > size) {
+            arraySlice.call(rows, size).forEach(function(tr){
+				tr.parentNode.removeChild(tr);
+            });
+		} else if(rows.length < size) {
+            for(let i=0,len=size-rows.length;i<len;i++) {
+                grid.appendChild(this._createRow());
+			}
+		} else {
+            return;
+		}
+		this.updateContent();
+	},
+	updateContent: function(){
+        let h = this.scrollElement.scrollTop;
+        let H = this.scrollElement.scrollHeight;
+        let itemHeight = this.getItemHeight();
+        let pageSize = this.getPageSize();
+        let start = Math.floor(h / itemHeight);
+        this.grid.style.marginTop = (-1 * h % itemHeight) + "px";
+        this.setRange(start, start + pageSize);
+        this.updateHeader();
+	},
+	_createRow: function(){
+        let columns = this.columns;
+        let tr = document.createElement('tr');
+        let buf = [];
+        columns.forEach(function(text){
+            if(text === "key") {
+                buf.push('<td class="key-cell"></td>');
+			} else {
+                buf.push('<td></td>');
+			}
+		});
+        tr.innerHTML = buf.join('');
+        return tr;
+	},
+	updateOffset: function(){
+        let h = this.scrollElement.scrollTop;
+        this.grid.style.transform = "translateY(" + h + "px)";
+		this.header.parentNode.scrollLeft = this.scrollElement.scrollLeft;
+	},
+	updateHeader: function () {
+	    let grid = this.grid;
+        let tr = grid.rows[0];
+        if(!tr) { return; }
+        this.header.style.width = valueOf(grid, 'width') + "px";
+        let cells = tr.cells;
+        let headCells = this.header.querySelectorAll('th');
+
+		arraySlice.call(headCells).forEach(function (th, i) {
+			let td = cells[i];
+			th.style.width = valueOf(td, 'width') + "px";
+		});
+    },
+	setImageBody: function (isimg) {
+		let cl = this.grid.classList;
+		cl[isimg ? 'add': 'remove']("image-body");
+    },
+	getRowData: function (tr) {
+		let cell = tr.querySelector('.key-cell');
+		let key = cell.innerHTML;
+		let ret;
+		this._data.forEach(function (row) {
+			if(row.key === key) {
+			    ret = row;
+			    return false;
+			}
+        });
+		return ret;
+    },
+	updateRowData: function (data) {
+	    let key = data.key;
+	    // 更新数据
+        this._data.forEach(function (row) {
+            if(row.key === key) {
+                for(let prop in data) {
+                    row[prop] = data[prop];
+				}
+                return false;
+            }
+        });
+        // 更新当前表格行
+		let cells = this.grid.querySelectorAll('.key-cell');
+		let columns = this.columns;
+		let tr;
+		arraySlice.call(cells).forEach(function (td) {
+			if(td.innerText === key) {
+			    tr = td.parentNode;
+			    return false;
+			}
+        });
+		tr && arraySlice.call(tr.cells).forEach(function (td, i) {
+			td.innerText = data[columns[i]];
+        });
+    },
+	removeRowData: function(key){
+	    let i, len, data = this._originalData;
+	    if(data) {
+            for(i=0,len=data.length;i<len;i++) {
+                if(data[i].key === key) {
+                    data.splice(i, 1);
+                    break;
+                }
+            }
+		}
+	    data = this._data;
+        for(i=0,len=data.length;i<len;i++) {
+            if(data[i].key === key) {
+                data.splice(i, 1);
+                break;
+            }
+        }
+		this.updateContent();
+	},
+	renameKey: function(key, newkey){
+        let i, len, data = this._data;
+        for(i=0,len=data.length;i<len;i++) {
+            if(data[i].key === key) {
+                data[i].key = newkey;
+                break;
+            }
+        }
+        this.updateContent();
+	},
+	getEditor: function () {
+		return this._editor;
+    },
+	setEditor: function (editor) {
+		this._editor = editor;
+    },
+	getKeyword: function () {
+		return this._keyword || null;
+    },
+	setKeyword: function(word){
+	    word = word.trim();
+	    // 还原数据
+	    if(word.length === 0 && this.hasOwnProperty('_keyword')) {
+	        delete this._keyword;
+	        this.setData(this._originalData);
+	        this.scrollElement.scrollTop = 0;
+	        delete this._originalData;
+	        return;
+		}
+	    if(this._keyword === word) { return; }
+	    let data = this._originalData || this._data;
+	    let fulltextsearch = this.getFulltextSearch();
+	    let searchedData = data.filter(function(row){
+	        if(fulltextsearch) {
+	            return Object.keys(row).some(function(key){
+	                return row[key].indexOf(word) > -1;
+				});
+			} else {
+	            return row.key.indexOf(word) > -1;
+			}
+		});
+	    this._originalData = data;
+	    this.setData(searchedData);
+	    this._keyword = word;
+	},
+	getFulltextSearch: function(){
+	    return this._fulltextsearch;
+	},
+	setFulltextSearch: function(flag) {
+	    let v = !!flag;
+	    if(v === this._fulltextsearch) {
+	        return;
+		}
+	    this._fulltextsearch = v;
+	    // 手动触发
+		if(this.hasOwnProperty('_keyword')) {
+            let word = this._keyword;
+            delete this._keyword;
+            this.setKeyword(word);
+		}
+	},
+	addData: function (values) {
+        let data = this._originalData || this._data;
+        data.push(values);
+    }
+};
+
+function RowEditor(smartgrid) {
+    let self = this;
+	smartgrid.grid.addEventListener("click", function (e) {
+	    if(self.smartgrid.grid.classList.contains("image-body")) {
+	        return;
+		}
+		let src = e.target, index = 1;
+		if(src.tagName.toLowerCase() === "td") {
+		    index = arraySlice.call(src.parentNode.cells).indexOf(src);
+		    src = src.parentNode;
+		}
+		self.editRow(src, index);
+    });
+	self.smartgrid = smartgrid;
+	smartgrid.setEditor(this);
+	self._editing = false;
+}
+
+RowEditor.prototype.editRow = function (tr, index) {
+    let self = this;
+    if(tr.classList.contains("disabled")) {
+        return;
+    }
+	if(!self._rendered) {
+	    self.render();
+	}
+	if(self._editing) {
+	    self.saveCurrentRow();
+	}
+	let data = self._data = self.smartgrid.getRowData(tr);
+    if(!data) { return; }
+	for(let key in data) {
+	    let el = self.element.querySelector('[name=' + key + ']');
+	    if(el.tagName.toLowerCase() === "td") {
+	        el.innerHTML = data[key];
+		} else {
+            el.value = data[key];
+		}
+	}
+	let target = self.element.querySelectorAll('td')[index];
+	if(target && target.firstElementChild && target.firstElementChild.tagName.toLowerCase() === "input") {
+	    target.firstElementChild.focus();
+	}
+    self._editing = true;
+	self.show();
+};
+
+RowEditor.prototype.saveCurrentRow = function () {
+    let self = this;
+    let data = self._data;
+    for(let key in data) {
+        let input = self.element.querySelector('[name=' + key + ']');
+        if(input.tagName.toLowerCase() === "input") {
+            data[key] = input.value;
+		}
+    }
+    self.smartgrid.updateRowData(data);
+};
+
+RowEditor.prototype.render = function () {
+	let self = this;
+	if(self._rendered) { return; }
+    let buf = ['<table class="row-editor"><tr>'];
+    self.smartgrid.columns.forEach(function(key){
+        if(key === "key") {
+            buf.push('<td name="key"></td>');
+		} else {
+            buf.push('<td><input type="text" name="' + key + '"/></td>');
+		}
+    });
+    buf.push('</tr></table>');
+    let tmp = document.createElement('div');
+    tmp.innerHTML = buf.join('');
+    self.element = tmp.firstChild;
+    self.smartgrid.scrollElement.appendChild(tmp.firstChild);
+    self._rendered = true;
+};
+
+RowEditor.prototype.show = function () {
+    if(!this._rendered) { return; }
+	this.element.style.display = "block";
+    this.updatePosition();
+};
+
+RowEditor.prototype.hide = function () {
+    if(!this._rendered) { return; }
+    this.element.style.display = "none";
+};
+
+RowEditor.prototype.isEditing = function () {
+	return this._editing;
+};
+
+RowEditor.prototype.updatePosition = function () {
+	let self = this;
+	if(!self.isEditing()) { return; }
+	let keyCells = self.smartgrid.grid.querySelectorAll("tr:not(.disabled) .key-cell");
+	let key = self._data.key;
+	let tr;
+	arraySlice.call(keyCells).forEach(function (cell) {
+		if(cell.innerHTML === key) {
+		    tr = cell.parentNode;
+		    return false;
+		}
+    });
+	if(tr) {
+		self.element.style.width = valueOf(tr, 'width') + "px";
+        self.element.style.top = tr.offsetTop + self.smartgrid.scrollElement.scrollTop + parseInt(self.smartgrid.grid.style.marginTop) + "px";
+        let cells = tr.cells;
+        let myCells = self.element.querySelectorAll('td');
+
+        arraySlice.call(myCells).forEach(function (mytd, i) {
+            let td = cells[i];
+            mytd.style.width = valueOf(td, 'width') + "px";
+        });
+	} else {
+	    self.saveCurrentRow();
+	    self.hide();
+	}
+};
+
+function ModalDialog(options) {
+    let self = this;
+    self._options = options;
+    self.render();
+    self.initEvents();
+	self.$promise = new Promise(function (resolve, reject) {
+		self._resolve = function (v) {
+			resolve({code: v, modal: self});
+        };
+		self._reject = function (e) {
+			reject(e);
+        };
+    });
+}
+
+ModalDialog.prototype.render = function () {
+	let html;
+	let title = this._options.title;
+	let bodyHtml = this._options.bodyHtml;
+
+	this.element = html2element(
+        `<div class="ui-modal">
+			<div class="modal-header">
+				<h3>${title}</h3>
+				<span class="close">&times;</span>
+			</div>
+			<div class="modal-body">${bodyHtml}</div>
+			<div class="modal-footer">
+				<button type="button" class="ok">确定</button>
+				<button type="button" class="cancel">取消</button>
+			</div>
+		</div>`
+	);
+
+	this.backdrop = html2element(
+	    '<div style="position: absolute; top:0; right: 0; bottom: 0; left:0; z-index: 999; background-color: rgba(0, 0, 0, 0.6); display: none;"></div>'
+	);
+	document.body.appendChild(this.element);
+	document.body.appendChild(this.backdrop);
+	function html2element(html) {
+        let tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return tmp.firstElementChild;
+    }
+    let onRender = this._options.onRender;
+	if(typeof onRender === "function") {
+	    try {
+	        onRender.call(this);
+        } catch(e) {
+	        console.log(e)
+		}
+	}
+};
+
+ModalDialog.prototype.initEvents = function () {
+    let self = this;
+    let codes = [
+        ModalDialog.RESOLVE_CODE_OK,
+		ModalDialog.RESOLVE_CODE_CANCEL
+	];
+    ['.modal-footer .ok', '.modal-footer .cancel'].forEach(function (selector, i) {
+        self.element.querySelector(selector).addEventListener('click', function () {
+            self._resolve(codes[i]);
+        });
+    });
+    self.element.querySelector('.modal-header .close').addEventListener('click', function () {
+        self.destroy();
+    });
+};
+
+ModalDialog.prototype.show = function () {
+	this.element.classList.add("open");
+	this.backdrop.style.display = "block";
+	this.center();
+};
+
+ModalDialog.prototype.hide = function () {
+    this.element.classList.remove("open");
+    this.backdrop.style.display = "none";
+    this._editing = false;
+};
+
+ModalDialog.prototype.center = function () {
+    let element = this.element;
+	let width = valueOf(element, 'width');
+	let height = valueOf(element, 'height');
+	element.style.top = "50%";
+    element.style.left = "50%";
+    element.style.marginTop = -1 * height / 2 + "px";
+    element.style.marginLeft = -1 * width / 2 + "px";
+};
+
+ModalDialog.prototype.destroy = function () {
+    ['element', 'backdrop'].forEach((el) => {
+		this[el].parentNode.removeChild(this[el]);
+		this[el] = null;
+    });
+	this.$promise = null;
+	delete this._options;
+	delete this._resolve;
+	delete this._reject;
+};
+
+ModalDialog.create = function(options){
+    let modal = new ModalDialog(options);
+    modal.show();
+    return modal.$promise;
+};
+
+ModalDialog.RESOLVE_CODE_CLOSE = 1;
+
+ModalDialog.RESOLVE_CODE_OK = 2;
+
+ModalDialog.RESOLVE_CODE_CANCEL = 3;
+
+// 根据目录特点查找，不使用 info_all.json
+function readVersions() {
+	let versions = [];
+	let pdir = path.join(__dirname, "pkg");
+	let dirs = fs.readdirSync(pdir);
+	dirs = dirs.filter(function(dir){
+		// 忽略 unix, mac 下的隐藏文件/夹
+		return !dir.startsWith(".");
+	}).filter(function(dir){
+		// 必须是目录
+		let stat = fs.lstatSync(path.join(pdir, dir));
+		return stat.isDirectory();
+	}).filter(function(dir){
+		// 这 3 个文件都存在时才认为是一个 OEM 版本
+		return ["code.js", "lang.js", "images.js"].filter(function(file){
+			return fs.existsSync(path.join(pdir, dir, file));
+		}).length === 3;
+	});
+	return versions.concat(dirs);
+}
+
+function readResourceByVersion(version) {
+	let versiondir, key;
+	// 由于 "0" 目录结构不同于其它的 OEM，加以区分
+	if(!version) {
+		versiondir = path.join(__dirname, "0");
+	} else {
+		versiondir = path.join(__dirname, "pkg", version);
+	}
+	
+	if(!fs.existsSync(versiondir)) {
+		console.error("read resource error:", version);
+		return null;
+	}
+	let resource = {code: null, lang: null, images: null};
+	// 读取过程中发生任何错误，都忽略
+	try {
+		for(key in resource) {
+			let content = fs.readFileSync(path.join(versiondir, key + ".js"), "utf-8");
+			resource[key] = jsonlib.parse(content);
+		}
+	} catch(e) {
+		console.error("error when parsing file: " + path.join(versiondir, key + ".js"));
+		console.error(e);
+		return null;
+	}
+	return resource;
+}
+
+function readAllResources() {
+    let types = ["code", "lang", "images"];
+    let cache = {};
+    let versions = readVersions();
+    let keyData = readResourceByVersion(0);
+    versions.forEach(function(version){
+        let data = cache[version] = readResourceByVersion(version);
+        // 如果直接手改了 pkg/{code,lang,images}.js 
+		// 0/{code,lang,images}.js 没有对应的 key，这里加上
+        types.forEach(function (type) {
+			let data0 = keyData[type];
+			let datav = data[type];
+			let key;
+			for(key in datav) {
+			    if(!(key in data0)) {
+			        data0[key] = "";
+				}
+			}
+        });
+    });
+    // 基于文件的数据转换为基于行的数据
+    let rowData = {};
+    types.forEach(function (type) {
+		rowData[type] = [];
+    });
+    types.forEach(function(type){
+        let arr = rowData[type];
+        let keys = keyData[type];
+        let key;
+        for(key in keys) {
+            let row = {key: key};
+            versions.forEach(function(version){
+                let val = cache[version][type][key]; 
+                row[version] = typeof val === "undefined" ? "" : val;
+			});
+            arr.push(row);
+		}
+	});
+    return rowData;
+}
+
+const SAVE_RESULT_NOT_CHANGE = 1;
+const SAVE_RESULT_YES = 2;
+
+function saveWithProgress(modal, data) {
+	let element = modal.element;
+	let titleEl = element.querySelector('.modal-header h3');
+	titleEl.innerHTML = "保存中";
+	element.querySelector('.modal-footer').classList.add("hidden");
+	let buf = ['<table class="save-progress">'];
+	buf.push(`<thead><tr><th></th><th>code.js</th><th>lang.js</th></tr></thead>`);
+	buf.push('<tbody>');
+	let versions = Object.keys(data);
+	versions.forEach(function (v) {
+		buf.push(`<tr role="${v}"><td>${v}</td><td role="code">waiting</td><td role="lang">waiting</td></tr>`);
+    });
+	buf.push('</tbody></table>');
+
+    element.querySelector('.modal-body').innerHTML = buf.join('');
+    let getCell = function (version, type) {
+		let tr = element.querySelector('[role=' + version + ']');
+		return tr.querySelector('[role=' + type + ']');
+    };
+    let promiseCount = 0;
+    let decrease = function () {
+		promiseCount--;
+		if(promiseCount === 0) {
+            titleEl.innerHTML = "已保存";
+		}
+    };
+    Object.keys(data).forEach(function (version) {
+		Object.keys(data[version]).forEach(function (type) {
+			let promise = data[version][type];
+			promise.then(function(v){
+			    let td = getCell(version, type);
+			    if(v === SAVE_RESULT_YES) {
+			        td.innerHTML = '<span style="color: green;">保存成功</span>';
+				} else if(v === SAVE_RESULT_NOT_CHANGE) {
+			        td.innerHTML = "无变动";
+				}
+				decrease();
+			}, function (error) {
+				getCell(version, type).innerHTML = '<span style="color: red;">' + error.message + '</span>';
+                decrease();
+            });
+			promiseCount++;
+        });
+    });
+    modal.center();
+}
+
+function valueOf(element, style) {
+	return element.getBoundingClientRect()[style];
+}
+
+const gmenu = (function () {
+    let key, grid;
+	return {
+	    bindGrid: function (gridInstance) {
+			grid = gridInstance;
+        },
+	    show: showMenu,
+		hide: hideMenu,
+		action: function (action) {
+			if(!key) { return; }
+			if(action === "edit-key") {
+			    editKey(key);
+			} else if(action === "delete") {
+			    removeRow(key);
+			} else {
+			    console.error("unexpected action:", action);
+			}
+			hideMenu();
+        }
+	};
+    function showMenu(e) {
+        let menuel = document.querySelector("#grid-menu");
+        menuel.style.left = e.clientX + "px";
+        menuel.style.top = e.clientY + "px";
+        menuel.style.display = "block";
+        key = e.target.innerText.trim();
+    }
+
+    function hideMenu() {
+        let menuel = document.querySelector("#grid-menu");
+        menuel.style.display = "none";
+        key = null;
+    }
+    function editKey(key) {
+        let tbody = `<tr><td>旧值</td><td>${key}</td></tr>
+<tr><td>新值</td><td><input type="text" name="key" value="${key}"/></td></tr>`;
+        ModalDialog.create({
+            title: '编辑 key',
+            bodyHtml: `<table class="fanyi-table" style="width: 240px;">${tbody}</table>`,
+        }).then(function(v){
+            let code = v.code;
+            let modal = v.modal;
+            if(code === ModalDialog.RESOLVE_CODE_OK) {
+                let values = {};
+                arraySlice.call(modal.element.querySelectorAll("input")).forEach((ipt) => {
+                    values[ipt.name] = ipt.value.trim();
+                });
+                let newkey = values.key.trim();
+                if(newkey !== key) {
+                    grid.renameKey(key, newkey);
+                } else {
+                    console.log("不能重命名 key，相同");
+                }
+            }
+            modal.hide();
+            modal.destroy();
+        });
+    }
+    function removeRow(key) {
+		grid.removeRowData(key);
+    }
+})();
+
+function bootstrap(){
+	let data = readAllResources();
+	let columns = Object.keys(data.lang[0]);
+	columns.sort();
+	let index = columns.indexOf("key");
+	columns.splice(index, 1);
+	columns.unshift("key");
+
+	let grid = new SmartGrid(document.querySelector('.smart-grid'), columns, data.code);
+	let editor = new RowEditor(grid);
+	// 搜索事件
+    document.querySelector('#search-keyword').addEventListener('input', function (e) {
+        if(editor.isEditing()) {
+            editor.saveCurrentRow();
+            editor.hide();
+        }
+        grid.setKeyword(this.value);
+    });
+	// 全文本搜索选项
+	document.querySelector('#search-fulltext').addEventListener('click', function (e) {
+		grid.setFulltextSearch(this.checked);
+    });
+	// radio 事件
+	arraySlice.call(document.querySelectorAll('.toolbar input[type="radio"]')).forEach(function (radio) {
+		radio.addEventListener("change", function (e) {
+			if(this.checked) {
+			    if(editor.isEditing()) {
+			        editor.saveCurrentRow();
+			        editor.hide();
+				}
+			    grid.setImageBody(this.value === "images");
+			    grid.setData(data[this.value]);
+			    grid.scrollElement.scrollTop = 0;
+			    grid.updatePageSize();
+			}
+        });
+    });
+	// 保存按钮事件
+	document.querySelector('#save-btn').addEventListener('click', function (e) {
+	    if(editor.isEditing()) {
+	        editor.saveCurrentRow();
+		}
+		ModalDialog.create({
+			title: '提示',
+			bodyHtml: '确定覆盖现有资源文件么？'
+		}).then(function(v){
+		    let code = v.code;
+		    let modal = v.modal;
+		    if(code === ModalDialog.RESOLVE_CODE_OK) {
+		        saveWithProgress(modal, saveAllResources());
+			} else {
+		        modal.hide();
+				modal.destroy();
+			}
+		});
+    });
+    // 添加按钮事件
+    document.querySelector('#add-btn').addEventListener('click', function (e) {
+        if(editor.isEditing()) {
+            editor.saveCurrentRow();
+        }
+        let tbody = columns.map(function (text) {
+			return `<tr><td>${text}</td><td><input type="text" name="${text}"/></td></tr>`;
+        }).join('');
+        ModalDialog.create({
+            title: '添加翻译',
+            bodyHtml: `<table class="fanyi-table">${tbody}</table>`,
+			onRender: function(){
+                let keyel = this.element.querySelector("input[name=classCh]");
+                keyel.addEventListener("input", function (e) {
+                    let val = this.value;
+					let inputs = this.parentNode.parentNode.parentNode.querySelectorAll("input");
+					for(let i=0,len=inputs.length; i<len; i++) {
+					    if(inputs[i] === this || inputs[i].name === "key") {
+					        continue;
+						} else {
+					        inputs[i].value = val;
+						}
+					}
+                });
+			}
+        }).then(function(v){
+            let code = v.code;
+            let modal = v.modal;
+            if(code === ModalDialog.RESOLVE_CODE_OK) {
+                let values = {};
+                arraySlice.call(modal.element.querySelectorAll("input")).forEach((ipt) => {
+                    values[ipt.name] = ipt.value.trim();
+				});
+                if(values.key && values.key.length > 0) {
+                    grid.addData(values);
+				} else {
+                    console.log("不能添加：", values);
+				}
+            }
+			modal.hide();
+			modal.destroy();
+        });
+    });
+    //
+	gmenu.bindGrid(grid);
+    // 右键
+	window.addEventListener("contextmenu", function (e) {
+		let td = e.target;
+		if(/^td$/i.test(td.tagName) && td.className === "key-cell") {
+		    gmenu.show(e);
+		} else {
+		    gmenu.hide();
+		}
+    });
+	window.addEventListener("click", function (e) {
+		gmenu.hide();
+    }, false);
+	// 菜单
+	document.querySelector("#grid-menu").addEventListener("click", function (e) {
+		e.stopPropagation();
+		let action = e.target.getAttribute("data-action");
+		if(!action) { return; }
+        if(editor.isEditing()) {
+            editor.saveCurrentRow();
+        }
+		editor.hide();
+		gmenu.action(action);
+    });
+
+	function saveAllResources() {
+	    // 只保存这两个
+	    let types = ['code', 'lang'];
+	    let versionedData = {};
+	    // 把面向行的数据转换为面向 OEM 版本的数据
+        types.forEach((type) => {
+            let rows = data[type];
+            rows.forEach((row) => {
+                for(let version in row) {
+                    // 不对 0 目录的数据做处理
+                    if(version === "key") {
+                        continue;
+					}
+                    if(!versionedData.hasOwnProperty(version)) {
+                        versionedData[version] = {};
+                        types.forEach((type) => versionedData[version][type] = {});
+					}
+					let key = row.key;
+                    let value = row[version];
+                    // 不保存空值
+                    if(value) {
+                        versionedData[version][type][key] = value;
+					}
+				}
+			});
+        });
+        let versions = Object.keys(versionedData);
+        // 基于 promise 的进度跟踪对象
+        let ret = {};
+        // 循环各个 OEM 并检查文件是否有变化，有变化则保存，无变化忽略
+        versions.forEach(function (version) {
+			ret[version] = {};
+			let types = Object.keys(versionedData[version]);
+			types.forEach(function (type) {
+			    let jsonData = versionedData[version][type];
+				ret[version][type] = new Promise(function (resolve, reject) {
+				    let file = path.join(__dirname, "pkg", version, type + ".js"); // 话说，这里为什么不用 json
+				    let content = JSON.stringify(jsonData, null, 4);
+				    // TODO: 这个 clalback hole 可以改一下
+					// 先检查
+				    fs.readFile(file, "utf-8", function (e, data) {
+						if(e) {
+						    reject(e);
+						} else {
+						    if(data === content) {
+						        resolve(SAVE_RESULT_NOT_CHANGE);
+							} else {
+						        // 需要保存的话再保存
+                                fs.writeFile(file, content, function (e) {
+                                    if(e) {
+                                        reject(e);
+                                    } else {
+                                        resolve(SAVE_RESULT_YES);
+                                    }
+                                });
+							}
+						}
+                    });
+                });
+            })
+        });
+        return ret;
+    }
+}
+
+</script>
+</body>
+</html>

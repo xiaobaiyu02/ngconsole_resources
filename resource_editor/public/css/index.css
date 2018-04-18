@@ -1,0 +1,20 @@
+a {cursor: pointer;}
+.toolbar {padding: 8px;text-align: center;}
+.toolbar > * {margin-right: 8px;}
+.content .nav-tabs a {text-align: center;}
+.content .nav-tabs > li {width: 50%;}
+.content td {white-space: pre-wrap;}
+.content .edit-btn {white-space: nowrap;}
+.loading {text-align: center;}
+.loading .glyphicon-repeat {
+	animation-duration: 1s;
+	animation-timing-function: linear;
+	animation-name: icon-loading;
+	animation-iteration-count: infinite;
+}
+
+@keyframes icon-loading {
+	0% { transform: rotateZ(0deg); }
+	50% { transform: rotateZ(180deg); }
+	100% { transform: rotateZ(360deg); }
+}

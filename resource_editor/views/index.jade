@@ -1,0 +1,60 @@
+doctype html
+html(ng-app="App" strict-di)
+  head
+    title vdi 管理台 (ngconsole) 多语言编辑
+    link(rel='stylesheet', href='/css/bootstrap.min.css')
+    link(rel="stylesheet" href="/css/index.css")
+  body(ng-controller="LanguageController")
+    div.select-lang(ng-show="!editorReady")
+      p 选择你要编辑的语言
+      ul
+        li(ng-show="languages.length === 0" class="loading")
+          span.glyphicon.glyphicon-repeat
+        li(ng-repeat="item in languages")
+          a(ng-click="selectLanguage(item)" ng-href="#/language/{{item.name}}" ng-bind="item.text")
+    .container.lang-editor(ng-show="editorReady")
+      form.form-inline.toolbar
+        .form-group
+          input(type="text" class="form-control" placeholder="查找内容" ng-model="filterText" ng-change="refresh()")
+        .checkbox
+          label
+            input(type="checkbox" ng-disabled="currentLanguage !== 'en-us'" ng-model="onlyUntranslated" ng-change="refresh()")
+            span 只显示未翻译的条目
+        .checkbox
+          label
+            input(type="checkbox" ng-model="onlyModified" ng-change="refresh()")
+            span 只显示修改过的条目
+      div.content
+        ul.nav.nav-tabs
+          li(ng-repeat="type in types" ng-class="{active: selectedIndex.value === $index }" ng-click="selectType(type)")
+            a(ng-bind="typeText[type]")
+        .tab-content
+          .tab-pane(ng-repeat="data in typeData" ng-class="{active: selectedIndex.value === $index }")
+            table.table.table-bordered.table-hover
+              thead
+                tr
+                  th ID
+                  th 内容
+                  th 操作
+              tbody
+                tr(ng-show="data.items.length === 0")
+                  td(colspan="3") 空空如也
+                tr(ng-repeat="item in data.items")
+                  td(ng-bind="item.key")
+                  td(ng-bind="item.cacheText || item.text")
+                  td
+                    a.edit-btn(ng-click="editLanguageItem(item, data.type)") 编辑
+            nav(aria-label="Page navigation")
+              ul.pagination.pull-right(ng-show="data.pages.length > 0")
+                li(ng-class="{disabled: data.currentPage === 1}")
+                  a(ng-click="data.selectPage(1)") &laquo;
+                li(ng-repeat="page in data.pages" ng-class="{active: page === data.currentPage}")
+                  a(ng-click="data.selectPage(page)" ng-bind="page")
+                li(ng-class="{disabled: data.currentPage === data.pages[data.pages.length - 1]}")
+                  a(ng-click="data.selectPage(data.pages[data.pages.length - 1])") &raquo;
+    //- script(type="text/javascript" src="/js/jquery-2.1.1.min.js")
+    //- script(type="text/javascript" src="/js/bootstrap.min.js")
+    script(type="text/javascript" src="/js/angular.min.js")
+    script(type="text/javascript" src="/js/angular-animate.min.js")
+    script(type="text/javascript" src="/js/ui-bootstrap-tpls-1.0.0.min.js")
+    script(type="text/javascript" src="/js/index.js")

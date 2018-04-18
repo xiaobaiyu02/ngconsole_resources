@@ -1,0 +1,29 @@
+<div class="modal-header">
+    <h3 class="modal-title">编辑翻译</h3>
+</div>
+<div class="modal-body">
+    <form class="form-horizontal" name="translateForm">
+        <div class="form-group">
+            <label class="control-label col-xs-3">ID</label>
+            <div class="col-xs-7">
+                <input class="form-control" type="text" name="id" readonly ng-model="item.key">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label col-xs-3">旧的翻译</label>
+            <div class="col-xs-7">
+                <textarea class="form-control" type="text" name="text" readonly ng-model="item.text"></textarea>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label col-xs-3">新的翻译</label>
+            <div class="col-xs-7">
+                <textarea class="form-control" type="text" name="cache-text" ng-model="item.cacheText" required></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button class="btn btn-primary" type="button" ng-disabled="translateForm.$invalid" ng-click="ok()">确定</button>
+    <button class="btn btn-default" type="button" ng-click="cancel()">放弃</button>
+</div>
